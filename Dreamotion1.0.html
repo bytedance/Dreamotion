@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="T2M: scalable and expressive text-to-motion generation.">
+  <meta name="theme-color" content="#f7f7f3">
+  <title>Dreamotion — Targeted Hierarchical Scaling for Text-to-Motion Generation</title>
+  <style>
+    :root {
+      --paper:#f7f7f3; --white:#fff; --ink:#18191d; --muted:#62666f;
+      --line:#dcdcd5; --accent:#4b45db; --accent-soft:#eeedff;
+      --blue:#305f93; --blue-soft:#e8eff7; --green:#527b2d; --green-soft:#edf4e6;
+      --orange:#a95122; --orange-soft:#f8ece5; --radius:18px; --max:1160px;
+      --shadow:0 18px 55px rgba(27,28,34,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;color:var(--ink);background:var(--paper);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+    img{display:block;max-width:100%} a{color:inherit;text-decoration:none} button{font:inherit}
+    .container{width:min(calc(100% - 40px),var(--max));margin:auto}
+    .topbar{position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(220,220,213,.8);background:rgba(247,247,243,.9);backdrop-filter:blur(16px)}
+    nav{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:28px}
+    .site-brand{display:inline-flex;align-items:center;margin-left:-16px;font-weight:820;letter-spacing:-.04em;white-space:nowrap}
+    .site-name{color:transparent;background:linear-gradient(100deg,var(--accent),#8652b2 58%,#b75c2b);background-clip:text;-webkit-background-clip:text;font-family:Georgia,serif;font-size:1.08rem}
+    .links{display:flex;align-items:center;gap:24px}.links a{color:var(--muted);font-size:.84rem;font-weight:650}.links a:hover,.links a.active{color:var(--ink)}
+    .pill{padding:8px 13px;border:1px solid var(--line);border-radius:999px;background:#fff}
+    .menu{display:none;padding:8px;border:0;background:none;cursor:pointer}
+
+    .hero{padding:54px 0 42px;text-align:center}
+    .kicker{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border-radius:999px;color:var(--accent);background:var(--accent-soft);font-size:.8rem;font-weight:750;letter-spacing:.04em}
+    .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+    h1{max-width:980px;margin:22px auto 18px;font-family:Georgia,serif;font-weight:500}
+    .project-name{display:block;font-size:clamp(3.8rem,7.5vw,6.6rem);line-height:.92;letter-spacing:-.06em}
+    .project-title{display:block;max-width:820px;margin:23px auto 0;font-size:clamp(1.7rem,3.4vw,3.15rem);line-height:1.08;letter-spacing:-.038em}
+    .gradient{color:transparent;background:linear-gradient(100deg,var(--accent),#8652b2 55%,#b75c2b);background-clip:text;-webkit-background-clip:text}
+    .lead{max-width:760px;margin:0 auto;color:#50545c;font-size:clamp(1rem,2vw,1.22rem)}
+    .affiliation{margin:10px auto 0;color:#2460bf;font-size:.95rem;font-weight:760;letter-spacing:-.015em}
+    .actions{display:flex;justify-content:center;flex-wrap:wrap;gap:11px;margin-top:27px}
+    .platform-guides{display:grid;max-width:1080px;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:27px auto 0}
+    .lumina-guide{min-width:0;padding:12px 14px;border:1px solid #d8d3e6;border-radius:16px;background:linear-gradient(135deg,rgba(245,242,252,.92),rgba(255,255,255,.82));box-shadow:0 12px 32px rgba(72,52,112,.08);text-align:left}
+    .lumina-guide-head{display:flex;justify-content:center;margin-bottom:10px}
+    .lumina-guide-cta{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 13px;border-radius:999px;color:#fff;background:linear-gradient(105deg,var(--accent),#7650a6);box-shadow:0 6px 16px rgba(76,45,130,.18);font-size:.78rem;font-weight:740;letter-spacing:-.01em;transition:transform .2s ease,box-shadow .2s ease}
+    .lumina-guide-cta:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(76,45,130,.24)}
+    .lumina-guide-cta span{font-size:.88rem}
+    .lumina-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+    .lumina-step{min-width:0;padding:0 11px;border-left:1px solid var(--line)}
+    .lumina-step{padding:10px}.lumina-step:nth-child(odd){padding-left:0;border-left:0}.lumina-step:nth-child(even){padding-right:0}.lumina-step:nth-child(-n+2){padding-top:0;border-top:0}.lumina-step:nth-child(n+3){padding-bottom:0;border-top:1px solid var(--line)}
+    .lumina-step-title{display:flex;align-items:center;gap:6px;min-height:38px;margin:0 0 6px;color:#4f535b;font-size:.69rem;font-weight:740}
+    .lumina-step-title b{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;color:#fff;background:var(--accent);font-size:.56rem}
+    .lumina-shot{position:relative;display:block;width:100%;height:140px;overflow:hidden;padding:4px;border:1px solid #303238;border-radius:8px;background:#101113;cursor:zoom-in}
+    .lumina-shot img{position:absolute;inset:4px;display:block;width:calc(100% - 8px);height:calc(100% - 8px);max-width:none;object-fit:contain}
+    .pippit-shot-stack{display:grid;height:140px;grid-template-rows:1fr 1fr;gap:4px}
+    .pippit-shot-stack .lumina-shot{height:auto;min-height:0}
+    .platform-guides .lumina-guide{padding:10px 12px}
+    .platform-guides .lumina-guide-head{margin-bottom:8px}
+    .platform-guides .lumina-step{padding:7px 8px}
+    .platform-guides .lumina-step:nth-child(odd){padding-left:0}
+    .platform-guides .lumina-step:nth-child(even){padding-right:0}
+    .platform-guides .lumina-step:nth-child(-n+2){padding-top:0}
+    .platform-guides .lumina-step:nth-child(n+3){padding-bottom:0}
+    .platform-guides .lumina-step-title{min-height:32px;margin-bottom:4px;font-size:.66rem}
+    .platform-guides .lumina-shot,.platform-guides .pippit-shot-stack{height:112px}
+    .platform-guides .pippit-shot-stack .lumina-shot{height:auto}
+    .hero-intro+.hero-filmwall{margin-top:30px}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 19px;border:1px solid var(--ink);border-radius:999px;color:#fff;background:var(--ink);font-size:.86rem;font-weight:700;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease}
+    .button:hover{transform:translateY(-2px);background:#303139;box-shadow:0 9px 20px rgba(24,25,29,.2)}
+    .button.secondary{color:var(--ink);border-color:var(--line);background:#fff}.button.secondary:hover{border-color:#a9a9b2;background:#f8f8f6;box-shadow:0 9px 20px rgba(24,25,29,.1)}.disabled{cursor:default}
+    .asset-missing{display:grid;place-items:center;min-height:180px;padding:24px;border:1px dashed #b9bbb5;border-radius:10px;color:var(--muted);background:#efefeb;text-align:center;font:650 .75rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .showcase-media .asset-missing{min-height:430px}.chart .asset-missing{min-height:260px}.figure-card .asset-missing{min-height:220px}.pipeline .asset-missing{min-height:170px}
+
+    .section{padding:86px 0;border-top:1px solid var(--line);scroll-margin-top:76px}
+    .section-head{display:grid;grid-template-columns:.82fr 1.18fr;gap:64px;align-items:end;margin-bottom:38px}
+    .eyebrow{margin:0 0 10px;color:var(--accent);font-size:.72rem;font-weight:780;letter-spacing:.13em;text-transform:uppercase}
+    h2{max-width:520px;margin:0;font:520 clamp(1.9rem,3.7vw,3.05rem)/1.08 Georgia,serif;letter-spacing:-.04em}
+    #applications h2{font-size:clamp(1.75rem,3.1vw,2.65rem)}
+    #method h2{font-size:clamp(1.8rem,3.1vw,2.55rem)}
+    .section-head>p{max-width:620px;margin:0;color:var(--muted);font-size:.98rem}
+
+    .application-stack{display:grid;min-width:0;gap:18px}
+    .application-pipeline{min-width:0;padding:20px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 12px 34px rgba(31,33,39,.06)}
+    .application-pipeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:16px}
+    .character-pipeline-head{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr)}
+    .character-pipeline-head>div{min-width:0}
+    .application-index{display:block;margin-bottom:5px;color:var(--accent);font-size:.66rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    .application-pipeline h3{margin:0;font:560 1.12rem/1.2 Georgia,serif;letter-spacing:-.02em}
+    .application-pipeline-head p{max-width:560px;margin:0;color:var(--muted);font-size:.78rem;line-height:1.5}
+    .application-flow{display:flex;align-items:center;gap:7px;margin-bottom:13px;overflow-x:auto;color:#555a63;font-size:.68rem;font-weight:720;white-space:nowrap;scrollbar-width:none}
+    .application-flow.compact{width:100%;max-width:100%;gap:4px;margin:8px 0 0;font-size:.56rem}
+    .application-flow::-webkit-scrollbar{display:none}
+    .application-flow span:not(.application-arrow){padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:#f7f7f5}
+    .application-flow.compact span:not(.application-arrow){padding:4px 6px}
+    .application-arrow{color:var(--accent);font-weight:850}
+    .application-gmr{color:var(--accent);font-weight:760}
+    .robot-samples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .robot-sample{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:13px;background:#f7f7f5}
+    .robot-prompt{display:flex;align-items:center;min-height:48px;padding:7px 13px;border-bottom:1px solid var(--line);background:#fff}
+    .robot-prompt p{margin:0;color:#454950;font:520 .84rem/1.35 Georgia,serif}
+    .robot-media-grid{display:grid;grid-template-columns:minmax(0,.82fr) 48px minmax(0,1.28fr);align-items:stretch;gap:5px;padding:5px}
+    .robot-media{display:flex;min-width:0;flex-direction:column;overflow:hidden;border-radius:8px;background:#111216}
+    .robot-media-label{padding:6px 8px;color:#e9e9ed;background:#24262c;font-size:.58rem;font-weight:720;letter-spacing:.01em;text-align:center}
+    .robot-media video{display:block;width:100%;height:168px;object-fit:contain;background:#111216}
+    .robot-retarget{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#777b84;text-align:center}
+    .robot-retarget b{color:var(--accent);font-size:1rem;line-height:1}
+    .robot-retarget span{font-size:.5rem;font-weight:780;letter-spacing:.05em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)}
+    .robot-retarget .application-gmr{font-size:.54rem;font-style:normal}
+    .character-pipeline{display:grid;width:100%;min-width:0;grid-template-columns:.58fr 1.39fr .88fr 1.25fr;grid-template-rows:repeat(2,155px);gap:10px;align-items:stretch}
+    .character-prompt-one{grid-column:1;grid-row:1}.character-prompt-two{grid-column:1;grid-row:2}
+    .character-prompt-one .application-prompt-box,.character-prompt-two .application-prompt-box{padding:10px;font-size:.62rem;line-height:1.38}
+    .character-prompt-one .application-stage-label,.character-prompt-two .application-stage-label{gap:4px;padding-right:6px;padding-left:6px}
+    .character-prompt-one .application-stage-label span,.character-prompt-two .application-stage-label span{font-size:.56rem;letter-spacing:-.02em;white-space:nowrap}
+    .character-prompt-one .application-stage-label b,.character-prompt-two .application-stage-label b{width:16px;height:16px;font-size:.5rem}
+    .character-motion-one{grid-column:2;grid-row:1}.character-motion-two{grid-column:2;grid-row:2}
+    .character-reference-stage{grid-column:3;grid-row:1/3}
+    .character-final-one{grid-column:4;grid-row:1}.character-final-two{grid-column:4;grid-row:2}
+    .application-stage{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#f7f7f5}
+    .application-stage-label{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:35px;padding:7px 9px;border-bottom:1px solid var(--line);color:#555a63;background:#fff;font-size:.66rem;font-weight:760}
+    .application-stage-label b{display:grid;place-items:center;flex:0 0 auto;width:18px;height:18px;border-radius:50%;color:#fff;background:var(--accent);font-size:.54rem}
+    .application-prompt-box{display:flex;flex:1;align-items:center;padding:16px;color:#454950;font:520 .7rem/1.45 Georgia,serif}
+    .application-media{display:grid;flex:1;place-items:center;min-height:176px;background:#111216}
+    .application-media video{display:block;width:100%;height:100%;min-height:176px;object-fit:contain;background:#111216}
+    .character-pipeline .application-media,.character-pipeline .application-media video{min-height:120px}
+    .application-references{display:grid;grid-template-columns:1fr 1fr;flex:1;gap:5px;padding:5px;background:#ecece8}
+    .application-reference{position:relative;min-width:0;overflow:hidden;border-radius:7px;background:#ddd}
+    .application-reference img{display:block;width:100%;height:100%;min-height:166px;object-fit:cover}
+    .application-reference:first-child img{object-position:center 25%}
+    .application-reference span{position:absolute;left:6px;bottom:6px;padding:3px 6px;border-radius:999px;color:#fff;background:rgba(22,23,27,.72);font-size:.56rem;font-weight:700;backdrop-filter:blur(5px)}
+    .application-final{border-color:#b7add2;box-shadow:0 9px 24px rgba(67,46,113,.09)}
+
+    .showcase{margin-top:46px;padding:10px;border:1px solid var(--line);border-radius:24px;background:#fff;box-shadow:var(--shadow)}
+    .showcase-media{position:relative;overflow:hidden;border-radius:16px;background:#e9eeed}
+    .showcase-media img{width:100%}
+    .video-badge{position:absolute;left:18px;bottom:18px;display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:999px;color:#fff;background:rgba(22,23,28,.82);backdrop-filter:blur(10px);font-size:.76rem;font-weight:700}
+    .play{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:var(--ink);background:#fff;font-size:.65rem}
+    .showcase-note{display:flex;justify-content:space-between;gap:20px;padding:13px 8px 3px;color:var(--muted);font-size:.76rem}
+    .capabilities{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:18px}
+    .capabilities span{padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#555a62;font-size:.73rem;font-weight:650}
+    .hero-filmwall{position:relative;margin-top:46px;overflow:hidden;padding:18px 0 15px;border:1px solid rgba(220,220,213,.9);border-radius:26px;background:radial-gradient(circle at 14% 0%,rgba(75,69,219,.14),transparent 32%),radial-gradient(circle at 86% 8%,rgba(183,92,43,.13),transparent 30%),linear-gradient(180deg,#fff,#f0f0ea);box-shadow:0 22px 60px rgba(27,28,34,.09)}
+    .hero-filmwall::before{content:"";position:absolute;inset:9px;border:1px solid rgba(255,255,255,.72);border-radius:20px;pointer-events:none}
+    .filmwall-title{position:relative;z-index:1;padding:0 20px 4px;color:transparent;background:linear-gradient(100deg,var(--accent),#8652b2 55%,#b75c2b);background-clip:text;-webkit-background-clip:text;font:760 1.12rem/1.1 Georgia,serif;letter-spacing:-.028em;text-align:center}
+    .filmwall-subtitle{position:relative;z-index:1;margin:0 0 14px;color:#6b6f78;font-size:.68rem;font-weight:650;letter-spacing:.01em;text-align:center}
+    .filmwall-title span{color:#3a57a9}
+    .film-row{position:relative;z-index:1;display:flex;width:max-content;gap:10px;margin-bottom:10px;animation:film-scroll 92s linear infinite}
+    .film-row:hover,.film-row:focus-within{animation-play-state:paused}
+    .film-row.reverse{animation-direction:reverse;animation-duration:106s}.film-row:last-child{margin-bottom:0}
+    .film-card{position:relative;display:block;flex:0 0 auto;width:148px;aspect-ratio:1;overflow:hidden;padding:0;border:1px solid rgba(255,255,255,.78);border-radius:13px;background:#e7e9e6;box-shadow:0 10px 24px rgba(24,25,29,.12);cursor:zoom-in}
+    .film-card video{display:block;width:100%;height:100%;object-fit:cover;background:#e7e9e6}
+    .film-prompt{position:absolute;inset:auto 0 0;margin:0;padding:28px 9px 8px;color:#fff;background:linear-gradient(transparent,rgba(15,17,21,.9));font:600 .61rem/1.36 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left}
+    .film-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+    .filmwall-note{position:relative;z-index:1;width:fit-content;margin:14px auto 0;padding:5px 12px;border:1px solid rgba(58,87,169,.15);border-radius:999px;color:#3a57a9;background:rgba(255,255,255,.66);font-size:.72rem;font-weight:800;letter-spacing:.035em;text-align:center}
+    .film-modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(12,13,17,.78);opacity:0;pointer-events:none;transition:opacity .2s ease}
+    .film-modal.open{opacity:1;pointer-events:auto}.film-modal-inner{position:relative;width:min(92vw,720px);padding:10px;border-radius:18px;background:#15161a;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+    .film-modal video{display:block;width:100%;max-height:76vh;border-radius:11px;background:#000}.film-modal p{margin:10px 5px 2px;color:#fff;font-size:.82rem;line-height:1.45}
+    .film-close,.image-close{position:absolute;top:-13px;right:-13px;display:grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid rgba(255,255,255,.35);border-radius:50%;color:#fff;background:#24262d;font-size:1.1rem;cursor:pointer}
+    .image-modal{position:fixed;inset:0;z-index:55;display:grid;place-items:center;padding:24px;background:rgba(12,13,17,.82);opacity:0;pointer-events:none;transition:opacity .2s ease}
+    .image-modal.open{opacity:1;pointer-events:auto}.image-modal-inner{position:relative;display:grid;place-items:center;width:min(94vw,1080px);max-height:90vh;padding:10px;border-radius:18px;background:#15161a;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+    .image-modal img{display:block;width:auto;height:auto;max-width:100%;max-height:86vh;border-radius:11px;object-fit:contain}
+    @keyframes film-scroll{to{transform:translateX(-50%)}}
+
+    .capability-wall{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .capability-row{display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .capability-label{display:flex;align-items:center;gap:12px;padding:1px 0 7px}
+    .capability-label small{display:inline-flex;align-items:center;justify-content:center;min-width:31px;height:22px;padding:0 8px;color:#fff;font-size:.66rem;font-weight:820;letter-spacing:.08em}
+    .capability-row:nth-child(n) .capability-label small{border-radius:3px;background:#3a57a9;box-shadow:3px 3px 0 #d2dcf1}
+    .capability-label h3{min-height:1.1em;margin:0;font:720 1.02rem/1.08 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.035em;white-space:nowrap}
+    .capability-row:nth-child(n) .capability-label h3{color:#3a57a9}
+    .capability-clips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .capability-clip{position:relative;display:flex;align-items:flex-end;width:100%;aspect-ratio:4/5;min-height:0;overflow:hidden;padding:10px;border:1px dashed #babbb5;border-radius:12px;background:linear-gradient(135deg,#f0f1ee,#e4e6e2);color:#686c73}
+    .capability-clip::before{content:"";position:absolute;top:50%;left:50%;width:38px;height:38px;border:1px solid currentColor;border-radius:50%;transform:translate(-50%,-50%)}
+    .capability-clip::after{content:"▶";position:absolute;top:50%;left:50%;transform:translate(-42%,-50%);font-size:.85rem}
+    .capability-clip span{position:relative;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.83);font-size:.68rem;font-weight:720}
+    .capability-example{min-width:0}
+    .capability-clip.has-video{display:block;min-height:0;padding:0;border-style:solid;background:#eceeeb}
+    .capability-clip.has-video::before,.capability-clip.has-video::after{display:none}
+    .capability-clip video{display:block;width:100%;height:100%;aspect-ratio:4/5;object-fit:contain;object-position:center top;background:#eceeeb}
+    .capability-prompt{position:absolute;inset:auto 0 0;z-index:2;margin:0;padding:28px 9px 8px;color:#fff;background:linear-gradient(transparent,rgba(18,20,24,.88));font:500 .62rem/1.35 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.01em;text-align:left;outline:none}
+
+    .data-stats{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:18px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff}
+    .data-stat{padding:23px;text-align:center;border-right:1px solid var(--line)}.data-stat:last-child{border:0}
+    .data-stat b{display:block;font:520 2.25rem/1 Georgia,serif;letter-spacing:-.04em}.data-stat span{display:block;margin-top:7px;color:var(--muted);font-size:.7rem;font-weight:720;letter-spacing:.07em;text-transform:uppercase}
+    .data-engine-grid{display:grid;grid-template-columns:1.55fr .86fr .78fr;grid-template-rows:auto auto;align-items:start;gap:11px;margin:36px 0 18px}
+    .engine-card{display:grid;grid-template-rows:auto auto 1fr;min-width:0;min-height:0;padding:13px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .engine-card:nth-child(1),.engine-card:nth-child(2){grid-row:1/3;align-self:start}
+    .engine-card:nth-child(3){grid-column:3;grid-row:1}
+    .engine-card:nth-child(4){grid-column:3;grid-row:2}
+    .engine-card:nth-child(3),.engine-card:nth-child(4){padding:10px}
+    .engine-card:nth-child(3) p,.engine-card:nth-child(4) p{margin:2px 0 3px}
+    .engine-card h3{margin:0;font:560 1rem/1.16 Georgia,serif;letter-spacing:-.02em}
+    .engine-card p{margin:2px 0 7px;color:var(--muted);font-size:.66rem;line-height:1.28}
+    .engine-visual{display:grid;place-items:center;min-height:0;padding:0;border-radius:0;background:transparent;overflow:hidden}
+    .engine-card:nth-child(1) .engine-visual{height:325px}
+    .engine-card:nth-child(2) .engine-visual{height:325px}
+    .engine-card:nth-child(3) .engine-visual,.engine-card:nth-child(4) .engine-visual{height:auto;margin-top:0}
+    .engine-card:nth-child(3) .engine-visual img{width:80%;height:auto;object-position:center top}
+    .engine-card:nth-child(4) .engine-visual img{width:100%;height:auto;object-position:center top}
+    .engine-visual img,.engine-visual svg{display:block;width:100%;height:100%;object-fit:contain}
+    .engine-visual svg{height:auto;max-height:100%}
+    .tier-samples-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin:36px 0 16px}
+    .tier-samples-head h3{margin:0;font:560 1.5rem Georgia,serif}.tier-samples-head p{max-width:560px;margin:0;color:var(--muted);font-size:.8rem}
+    .tiers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .tier{display:flex;flex-direction:column;min-width:0;padding:17px;border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:var(--radius);background:#fff}
+    .tier:nth-child(2){border-top-color:var(--orange)}.tier:nth-child(3){border-top-color:var(--green)}
+    .tier small{color:var(--blue);font-size:.68rem;font-weight:780;letter-spacing:.08em}.tier:nth-child(2) small{color:var(--orange)}.tier:nth-child(3) small{color:var(--green)}
+    .tier h3{margin:7px 0 5px;font:560 1.2rem Georgia,serif}.tier>p{min-height:57px;margin:0 0 13px;color:#555a62;font-size:.76rem;line-height:1.45}
+    .tier-video{position:relative;display:grid;place-items:center;width:100%;max-width:260px;aspect-ratio:9/16;min-height:0;margin-inline:auto;border:1px dashed #b9bbb5;border-radius:11px;background:linear-gradient(135deg,#eff0ed,#e3e5e1);color:#686c73}
+    .tier:nth-child(-n+2) .tier-video{max-width:215px}
+    .tier:nth-child(3) .tier-video{width:100%;max-width:100%;height:382px;aspect-ratio:auto}
+    .tier-video::before{content:"▶";display:grid;place-items:center;width:38px;height:38px;border:1px solid currentColor;border-radius:50%;font-size:.82rem}
+    .tier-video.has-video{overflow:hidden;border-style:solid;background:#fff}
+    .tier-video.has-video::before{display:none}
+    .tier-video span{position:absolute;left:10px;bottom:9px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.84);font-size:.66rem;font-weight:720}
+    .caption-guide{display:flex;align-items:center;gap:6px;margin:12px 0 6px;color:#7b58ad;font-size:.58rem;font-weight:760;letter-spacing:.03em}
+    .caption-guide::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+    .caption-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:12px 0 8px}
+    .caption-guide+.caption-tabs{margin-top:0}
+    .caption-tab{min-width:0;padding:5px 2px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:#fff;font-size:.56rem;font-weight:720;line-height:1.2;white-space:nowrap;cursor:pointer}
+    .caption-tab.active{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+    .caption-text{min-height:62px;margin:0;padding:10px;border-radius:9px;background:#f2f2ef;color:#4f545c;font-size:.72rem;line-height:1.45}
+
+    .method-stack{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
+    .method-block{display:flex;flex-direction:column;gap:16px;padding:21px;border:1px solid var(--line);border-radius:22px;background:#fff}
+    .method-copy h3{margin:0 0 7px;font:560 1.46rem Georgia,serif}.method-copy p{margin:0;color:var(--muted);font-size:.84rem;line-height:1.48}
+    .stage-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:15px}
+    .stage{min-width:0;padding:12px 11px 11px;border:1px solid #e7e7e1;border-top:2px solid var(--blue);border-radius:12px;background:linear-gradient(180deg,#fff,#f7f7f3)}
+    .stage:nth-child(2){border-top-color:var(--orange)}.stage:nth-child(3){border-top-color:var(--green)}
+    .stage b{display:block;margin-bottom:2px;font-size:.75rem}
+    .stage-source{display:inline-flex;padding:3px 6px;border-radius:999px;background:#eaf2ff;color:var(--blue);font-size:.57rem;font-weight:760;line-height:1.25}
+    .stage:nth-child(2) .stage-source{background:#fff0e6;color:var(--orange)}.stage:nth-child(3) .stage-source{background:#e9f7ee;color:var(--green)}
+    .stage-purpose{display:block;margin-top:8px;color:var(--muted);font-size:.64rem;line-height:1.35}
+    .pipeline{padding:9px;border-radius:12px;background:#fafafa}.pipeline img{width:100%}
+
+    .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .result{padding:19px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .result.wide{grid-column:1/-1}.result h3{margin:0 0 4px;font:560 1.25rem Georgia,serif}.result p{margin:0 0 14px;color:var(--muted);font-size:.8rem}
+    .chart{overflow:hidden;border:1px solid #ecece7;border-radius:10px}.chart img{width:100%}
+    .results-grid .result:nth-child(2) .chart img{width:72%;margin-inline:auto}
+    .result-key{display:flex;align-items:baseline;gap:10px;margin-top:14px;color:var(--muted);font-size:.78rem}.result-key b{color:var(--accent);font:560 1.24rem Georgia,serif}
+    .scaling-layout{display:grid;grid-template-columns:minmax(250px,.65fr) minmax(0,1.35fr);gap:18px;align-items:stretch}
+    .scaling-summary{display:flex;flex-direction:column;align-self:stretch;gap:10px}
+    .scaling-finding{flex:1;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .scaling-finding small{color:var(--accent);font-size:.68rem;font-weight:780;letter-spacing:.09em}
+    .scaling-finding b{display:block;margin:13px 0 5px;font:560 1.14rem Georgia,serif}
+    .scaling-finding p{margin:0;color:var(--muted);font-size:.72rem;line-height:1.42}
+    .scaling-chart{display:flex;flex-direction:column;padding:15px;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+    .scaling-chart h3{margin:0 0 3px;font:560 1.16rem Georgia,serif}.scaling-chart>p{margin:0 0 11px;color:var(--muted);font-size:.76rem}
+    .scaling-chart .chart{display:grid;place-items:center}.scaling-chart .chart img{display:block;width:auto;max-width:100%;height:280px;object-fit:contain}
+
+    .tier-video video{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:#fff}
+    .tier:nth-child(-n+2) .tier-video video{object-fit:cover;transform:scale(1.12);transform-origin:center 75%}
+    .tier:nth-child(3) .tier-video video{object-fit:contain;object-position:center;background:#fff}
+
+    .contributors{padding:26px 0 11pt}
+    .contributors .container{padding-top:22px;border-top:1px solid var(--line)}
+    .contributors-title{margin:0 0 11px;color:var(--ink);font-size:1rem;font-weight:760;letter-spacing:.02em}
+    .contributors-list{margin:0;color:var(--muted);font-size:.86rem}
+    footer{padding:11pt 0 36px;color:var(--muted);font-size:.76rem}.footer{display:flex;justify-content:space-between;gap:20px}.footer div{display:flex;gap:17px}
+    .reveal{opacity:0;transform:translateY(15px);transition:opacity .6s ease,transform .6s ease}.reveal.visible{opacity:1;transform:none}
+
+    @media(max-width:1050px){
+      .capability-wall,.data-engine-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .data-engine-grid{grid-template-rows:auto}
+      .engine-card:nth-child(n){grid-column:auto;grid-row:auto}
+    }
+    @media(max-width:860px){
+      .links{position:absolute;inset:66px 0 auto;display:none;padding:18px 20px 23px;border-bottom:1px solid var(--line);background:var(--paper)}.links.open{display:grid;gap:13px}.menu{display:block}
+      .section-head{grid-template-columns:1fr;gap:18px}.method-stack{grid-template-columns:1fr}.tiers,.data-engine-grid{grid-template-columns:1fr}.tier-samples-head{display:block}.tier-samples-head p{margin-top:8px}
+      .results-grid,.scaling-layout{grid-template-columns:1fr}.result.wide{grid-column:auto}
+      .platform-guides{grid-template-columns:1fr}
+      .robot-samples{grid-template-columns:1fr}.robot-media video{height:220px}.character-pipeline{grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,155px)}.character-prompt-one{grid-column:1;grid-row:1}.character-prompt-two{grid-column:1;grid-row:2}.character-motion-one{grid-column:2;grid-row:1}.character-motion-two{grid-column:2;grid-row:2}.character-reference-stage{grid-column:1;grid-row:3/5}.character-final-one{grid-column:2;grid-row:3}.character-final-two{grid-column:2;grid-row:4}.application-pipeline-head,.character-pipeline-head{display:block}.application-pipeline-head p{margin-top:7px}
+    }
+    @media(max-width:600px){
+      .container{width:min(calc(100% - 28px),var(--max))}.hero{padding-top:58px}.project-name{font-size:clamp(3.4rem,17vw,5.1rem)}.project-title{font-size:clamp(1.5rem,8vw,2.2rem)}
+      .section{padding:68px 0}.showcase{margin-top:34px;padding:6px}.showcase-note span:last-child{display:none}
+      .hero-filmwall{margin-top:34px}.film-card{width:118px}.filmwall-note span:last-child{display:none}
+      .data-stats{grid-template-columns:1fr 1fr}.data-stat:nth-child(2){border-right:0}.data-stat:nth-child(-n+2){border-bottom:1px solid var(--line)}
+      .platform-guides{gap:12px}.lumina-guide{padding:12px}.lumina-guide-head{align-items:flex-start}.lumina-steps{grid-template-columns:1fr}.lumina-step:nth-child(n){padding:8px 0;border-left:0;border-top:1px solid var(--line)}.lumina-step:first-child{padding-top:0;border-top:0}.lumina-step:last-child{padding-bottom:0}.lumina-shot{min-height:0}.platform-guides .lumina-shot,.platform-guides .pippit-shot-stack{height:120px}.platform-guides .pippit-shot-stack .lumina-shot{height:auto}
+      .application-pipeline{padding:14px}.character-pipeline{grid-template-columns:1fr;grid-template-rows:none}.character-prompt-one,.character-prompt-two,.character-motion-one,.character-motion-two,.character-reference-stage,.character-final-one,.character-final-two{grid-column:auto;grid-row:auto}.application-flow{padding-bottom:3px}.robot-media-grid{grid-template-columns:minmax(0,.82fr) 42px minmax(0,1.18fr)}.robot-media video{height:142px}.application-media,.application-media video{min-height:190px}.character-pipeline .application-media,.character-pipeline .application-media video{min-height:160px}.application-references{min-height:210px}.application-reference img{min-height:200px}
+      .stage-row,.capability-clips,.capability-wall{grid-template-columns:1fr}.footer{display:block}.footer div{margin-top:8px}
+    }
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="container" aria-label="Primary navigation">
+      <a class="site-brand" href="#top" aria-label="Dreamotion home"><span class="site-name">Dreamotion</span></a>
+      <button class="menu" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+      <div class="links">
+        <a href="#demo">Gallery</a><a href="#capabilities">Capabilities</a><a href="#applications">Applications</a><a href="#results">Evaluation</a>
+        <a href="#data">Data</a><a href="#method">Method</a><a href="#scaling">Scaling</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="demo">
+      <div class="container">
+        <div class="reveal hero-intro">
+          <h1><span class="project-name gradient">Dreamotion 1.0</span></h1>
+          <p class="lead">Generating expressive, precise, and natural full-body motion from open-ended text.</p>
+          <p class="affiliation">ByteDance Intelligent Creation</p>
+          <div class="platform-guides">
+          <section class="lumina-guide" aria-label="How to use Dreamotion on Lumina">
+            <div class="lumina-guide-head"><a class="lumina-guide-cta" href="https://ai.byteplus.com/lumina/en/model/video?mode=video" target="_blank" rel="noopener noreferrer">Try Dreamotion on Lumina! <span aria-hidden="true">↗</span></a></div>
+            <div class="lumina-steps">
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>1</b>Click material - 3D Director's Desk</h3><button class="lumina-shot" type="button" data-image="files/images/lumina_material.png" data-alt="Click Material in Lumina" aria-label="Enlarge step 1 screenshot"><img src="files/images/lumina_material.png" alt="Click Material in Lumina"></button></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>2</b>Select Vincent action</h3><button class="lumina-shot" type="button" data-image="files/images/lumina_vincent.png" data-alt="Select Vincent action in Lumina" aria-label="Enlarge step 2 screenshot"><img src="files/images/lumina_vincent.png" alt="Select Vincent action in Lumina"></button></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>3</b>Enter prompt and generate</h3><button class="lumina-shot" type="button" data-image="files/images/lumina_generate.png" data-alt="Enter a prompt and generate motion in Lumina" aria-label="Enlarge step 3 screenshot"><img src="files/images/lumina_generate.png" alt="Enter a prompt and generate motion in Lumina"></button></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>4</b>View the generated motion!</h3><button class="lumina-shot" type="button" data-image="files/images/lumina_motion.png" data-alt="View the generated Dreamotion result in Lumina" aria-label="Enlarge step 4 screenshot"><img src="files/images/lumina_motion.png" alt="View the generated Dreamotion result in Lumina"></button></article>
+            </div>
+          </section>
+          <section class="lumina-guide pippit-guide" aria-label="How to use Dreamotion on Pippit">
+            <div class="lumina-guide-head"><a class="lumina-guide-cta pippit-guide-name" href="https://xyq.jianying.com/home?tab_name=home&amp;agent_tab=creative" target="_blank" rel="noopener noreferrer">Try Dreamotion on Pippit! <span aria-hidden="true">↗</span></a></div>
+            <div class="lumina-steps">
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>1</b>Open creative canvas</h3><button class="lumina-shot" type="button" data-image="files/images/pippit_1.png" data-alt="Open creative canvas in Pippit" aria-label="Enlarge Pippit step 1 screenshot"><img src="files/images/pippit_1.png" alt="Open creative canvas in Pippit"></button></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>2</b>Open 3D director studio</h3><div class="pippit-shot-stack"><button class="lumina-shot" type="button" data-image="files/images/pippit_2a.png" data-alt="Select 3D director studio in Pippit" aria-label="Enlarge first Pippit step 2 screenshot"><img src="files/images/pippit_2a.png" alt="Select 3D director studio in Pippit"></button><button class="lumina-shot" type="button" data-image="files/images/pippit_2b.png" data-alt="Open 3D director studio in Pippit" aria-label="Enlarge second Pippit step 2 screenshot"><img src="files/images/pippit_2b.png" alt="Open 3D director studio in Pippit"></button></div></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>3</b>Enter the prompt</h3><button class="lumina-shot" type="button" data-image="files/images/pippit_3.png" data-alt="Enter a motion prompt in Pippit" aria-label="Enlarge Pippit step 3 screenshot"><img src="files/images/pippit_3.png" alt="Enter a motion prompt in Pippit"></button></article>
+              <article class="lumina-step"><h3 class="lumina-step-title"><b>4</b>View the generated motion!</h3><button class="lumina-shot" type="button" data-image="files/images/pippit_4.png" data-alt="View the generated motion in Pippit" aria-label="Enlarge Pippit step 4 screenshot"><img src="files/images/pippit_4.png" alt="View the generated motion in Pippit"></button></article>
+            </div>
+          </section>
+          </div>
+        </div>
+        <div class="hero-filmwall reveal" aria-label="Dreamotion generation gallery">
+          <div class="filmwall-title">Demo Gallery</div>
+          <p class="filmwall-subtitle">Explore diverse motions generated by Dreamotion!</p>
+          <div class="film-row" id="film-row-a"></div>
+          <div class="film-row reverse" id="film-row-b"></div>
+          <div class="filmwall-note">Hover to pause · Click any video to enlarge</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="applications">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Applications</p><h2>Diverse downstream applications.</h2></div>
+          <p>Dreamotion can support diverse downstream applications, including controllable human video generation and scalable motion data generation for embodied intelligence.</p>
+        </div>
+        <div class="application-stack">
+          <article class="application-pipeline reveal">
+            <div class="application-pipeline-head character-pipeline-head">
+              <div>
+                <h3>Text-to-character video</h3>
+                <div class="application-flow compact" aria-label="Text-to-character video pipeline">
+                  <span>Text prompt</span><span class="application-arrow">→</span><span>Generated motion</span><span class="application-arrow">+</span><span>Character &amp; background references</span><span class="application-arrow">→</span><span>Generated video</span>
+                </div>
+              </div>
+              <p>Generated motion provides explicit movement guidance for reference-to-video generation, while character and background references control appearance and scene context.</p>
+            </div>
+            <div class="character-pipeline">
+              <div class="application-stage character-prompt-one">
+                <div class="application-stage-label"><span>Text prompt · Case 01</span><b>1</b></div>
+                <div class="application-prompt-box">“Perform Tai Chi cloud hands in front of the body, slowly shifting the weight from side to side.”</div>
+              </div>
+              <div class="application-stage character-prompt-two">
+                <div class="application-stage-label"><span>Text prompt · Case 02</span><b>1</b></div>
+                <div class="application-prompt-box">“First walk forward, then spread both arms in a welcoming gesture, and finally raise one hand to greet.”</div>
+              </div>
+              <div class="application-stage character-motion-one">
+                <div class="application-stage-label"><span>Generated motion · Case 01</span><b>2</b></div>
+                <div class="application-media"><video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/lumina/motion_video.mp4" aria-label="Motion generated by Dreamotion"></video></div>
+              </div>
+              <div class="application-stage character-motion-two">
+                <div class="application-stage-label"><span>Generated motion · Case 02</span><b>2</b></div>
+                <div class="application-media"><video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/lumina/motion_video2.mp4" aria-label="Second generated motion example"></video></div>
+              </div>
+              <div class="application-stage character-reference-stage">
+                <div class="application-stage-label"><span>Visual references</span><b>3</b></div>
+                <div class="application-references">
+                  <div class="application-reference"><img src="files/images/application/lumina/ref_person.jpeg" loading="lazy" alt="Character appearance reference"><span>Character</span></div>
+                  <div class="application-reference"><img src="files/images/application/lumina/ref_background_540.jpeg" loading="lazy" alt="Background reference"><span>Background</span></div>
+                </div>
+              </div>
+              <div class="application-stage application-final character-final-one">
+                <div class="application-stage-label"><span>Generated video · Case 01</span><b>4</b></div>
+                <div class="application-media"><video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/lumina/generated_video.mp4" aria-label="Character video generated from motion and visual references"></video></div>
+              </div>
+              <div class="application-stage application-final character-final-two">
+                <div class="application-stage-label"><span>Generated video · Case 02</span><b>4</b></div>
+                <div class="application-media"><video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/lumina/generated_video2.mp4" aria-label="Second character video generated from shared prompt and visual references"></video></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="application-pipeline reveal">
+            <div class="application-pipeline-head character-pipeline-head">
+              <div>
+                <h3>Text-to-robot motion</h3>
+                <div class="application-flow compact" aria-label="Text-to-robot motion pipeline">
+                  <span>Text prompt</span><span class="application-arrow">→</span><span>Generated motion</span><span class="application-arrow">→</span><span>Motion retargeting</span><span class="application-arrow">→</span><span>Robot motion</span>
+                </div>
+              </div>
+              <p>Human motion generated from open-ended prompts can be retargeted to humanoid embodiments, creating scalable motion data for embodied agents.</p>
+            </div>
+            <div class="robot-samples">
+              <article class="robot-sample">
+                <div class="robot-prompt"><p>“Perform a set of standard squats.”</p></div>
+                <div class="robot-media-grid">
+                  <div class="robot-media">
+                    <div class="robot-media-label">Generated motion</div>
+                    <video class="application-video" muted loop playsinline preload="none" data-src="files/hero_videos/Perform_a_set_of_standard_squats_seed171466323_robot_rot225.mp4" aria-label="Dreamotion motion for standard squats"></video>
+                  </div>
+                  <div class="robot-retarget"><span>Retarget</span><b>→</b><em class="application-gmr">GMR</em></div>
+                  <div class="robot-media">
+                    <div class="robot-media-label">Robot motion</div>
+                    <video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/robot/Perform_a_set_of_standard_squats_seed171466323.mp4" aria-label="Retargeted robot motion for standard squats"></video>
+                  </div>
+                </div>
+              </article>
+              <article class="robot-sample">
+                <div class="robot-prompt"><p>“Step forward and extend a hand in welcome.”</p></div>
+                <div class="robot-media-grid">
+                  <div class="robot-media">
+                    <div class="robot-media-label">Generated motion</div>
+                    <video class="application-video" muted loop playsinline preload="none" data-src="files/hero_videos/Step_forward_and_extend_a_hand_in_welcome_seed171466323_robot_rot225.mp4" aria-label="Dreamotion motion for a welcoming gesture"></video>
+                  </div>
+                  <div class="robot-retarget"><span>Retarget</span><b>→</b><em class="application-gmr">GMR</em></div>
+                  <div class="robot-media">
+                    <div class="robot-media-label">Robot motion</div>
+                    <video class="application-video" muted loop playsinline preload="none" data-src="files/images/application/robot/Step_forward_and_extend_a_hand_in_welcome_seed171466323.mp4" aria-label="Retargeted robot motion for a welcoming gesture"></video>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="capabilities">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Key capabilities</p><h2>A broader motion vocabulary.</h2></div>
+          <p>Dreamotion makes text-to-motion generation more practical for real-world applications by addressing challenging scenarios that remain difficult for prior models.</p>
+        </div>
+        <div class="capability-wall">
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>01</small><h3>Basic actions</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="basic-action-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Basic drumming action generated by Dreamotion"><source src="files/demo_videos/basic_actions/Drum_with_both_hands,_then_tap_the_feet_to_the_beat_seed955851941_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Drum with both hands, then tap the feet to the beat.">“Drum with both hands, then tap the feet to the beat.”</p></div></div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="basic-action-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Basic jogging action generated by Dreamotion"><source src="files/demo_videos/basic_actions/Jog_lightly_down_the_stairs_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Jog lightly down the stairs.">“Jog lightly down the stairs.”</p></div></div>
+            </div>
+          </article>
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>02</small><h3>Compositional actions</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example">
+                <div class="capability-clip has-video" data-video-slot="compositional-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Compositional action generated by Dreamotion"><source src="files/demo_videos/compositional_actions/First_step_forward,_then_spread_both_hands,_and_finally_point_forward_with_one_hand_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="First step forward, then spread both hands, and finally point forward with one hand.">“First step forward, then spread both hands, and finally point forward with one hand.”</p></div>
+              </div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="compositional-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Compositional action generated by Dreamotion"><source src="files/demo_videos/compositional_actions/Run_all_the_way_over,_pick_up_something_from_the_ground,_then_walk_back_seed1254053270_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Run all the way over, pick up something from the ground, then walk back.">“Run all the way over, pick up something from the ground, then walk back.”</p></div></div>
+            </div>
+          </article>
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>03</small><h3>Long-tail semantics</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example">
+                <div class="capability-clip has-video" data-video-slot="long-tail-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Long-tail Tai Chi action generated by Dreamotion"><source src="files/demo_videos/long-tail_semantics/Perform_Tai_Chi_cloud_hands_in_front_of_the_body,_slowly_shifting_the_weight_from_side_to_side_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Perform Tai Chi cloud hands in front of the body, slowly shifting the weight from side to side.">“Perform Tai Chi cloud hands in front of the body, slowly shifting the weight from side to side.”</p></div>
+              </div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="long-tail-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Long-tail yo-yo action generated by Dreamotion"><source src="files/demo_videos/long-tail_semantics/Perform_a_sequence_of_tricks_with_yo-yo_and_then_catch_it_seed955851941_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Perform a sequence of tricks with yo-yo and then catch it.">“Perform a sequence of tricks with yo-yo and then catch it.”</p></div></div>
+            </div>
+          </article>
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>04</small><h3>Detailed hand gestures</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="gestures-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Detailed hand gesture generated by Dreamotion"><source src="files/demo_videos/detailed_hand_gestures/Raise_both_hands_in_front_of_the_chest_and_extend_two_fingers_on_each_hand_in_a_V_sign_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Raise both hands in front of the chest and extend two fingers on each hand in a V sign.">“Raise both hands in front of the chest and extend two fingers on each hand in a V sign.”</p></div></div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="gestures-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Thumbs-up hand gesture generated by Dreamotion"><source src="files/demo_videos/detailed_hand_gestures/Raise_one_thumb_to_show_approval_seed955851941_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Raise one thumb to show approval.">“Raise one thumb to show approval.”</p></div></div>
+            </div>
+          </article>
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>05</small><h3>Emotional expression</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="emotion-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Emotional action generated by Dreamotion"><source src="files/demo_videos/emotional_expression/Lean_back_half_a_step_in_surprise,_covering_the_wide-open_mouth_with_both_hands_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Lean back half a step in surprise, covering the wide-open mouth with both hands.">“Lean back half a step in surprise, covering the wide-open mouth with both hands.”</p></div></div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="emotion-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Celebratory emotional action generated by Dreamotion"><source src="files/demo_videos/emotional_expression/Clench_both_fists_and_wave_the_arms_excitedly_in_celebration_seed927522650_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Clench both fists and wave the arms excitedly in celebration.">“Clench both fists and wave the arms excitedly in celebration.”</p></div></div>
+            </div>
+          </article>
+          <article class="capability-row reveal">
+            <div class="capability-label"><small>06</small><h3>Fine-grained control</h3></div>
+            <div class="capability-clips">
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="fine-control-1"><video autoplay muted loop playsinline preload="metadata" aria-label="Fine-grained box interaction generated by Dreamotion"><source src="files/demo_videos/fine-grained_control/First_pretend_to_open_a_box_with_both_hands,_then_present_it_forward_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="First pretend to open a box with both hands, then present it forward.">“First pretend to open a box with both hands, then present it forward.”</p></div></div>
+              <div class="capability-example"><div class="capability-clip has-video" data-video-slot="fine-control-2"><video autoplay muted loop playsinline preload="metadata" aria-label="Fine-grained steering action generated by Dreamotion"><source src="files/demo_videos/fine-grained_control/Pretend_to_hold_a_steering_wheel_with_both_hands_and_turn_it_left_and_right_seed171466323_robot_rot225.mp4" type="video/mp4"></video><p class="capability-prompt" tabindex="0" title="Pretend to hold a steering wheel with both hands and turn it left and right.">“Pretend to hold a steering wheel with both hands and turn it left and right.”</p></div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="results">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Evaluation</p><h2>Leading human preference.</h2></div>
+          <p>We evaluate Dreamotion on 674 held-out prompts under a unified human evaluation protocol. Blind pairwise comparisons measure overall user preference. Five-dimensional MOS ratings provide a multidimensional assessment of generation quality, while the overall usability rate separately reflects practical usability.</p>
+        </div>
+        <div class="results-grid">
+          <article class="result reveal"><h3>Human preference ranking</h3><p>10,507 judgments were collected through blind, side-by-side comparisons and aggregated into an Elo-style global ranking of Dreamotion and recent state-of-the-art text-to-motion models.</p><div class="chart"><img src="files/images/elo_ranking_forest_plot.png" alt="Elo ranking of Dreamotion and baselines"></div><div class="result-key"><b>Rank-1 with 72% win rate</b></div></article>
+          <article class="result reveal"><h3>Multi-dimensional mean opinion score</h3><p>Five-dimensional MOS evaluates generated motions across five complementary aspects on a 1-to-5 scale. The overall usability rate measures practical usability, representing the proportion of motions that score at least 3 across all five dimensions.</p><div class="chart"><img src="files/images/mos_human_evaluation.png" alt="MOS and usability results"></div><div class="result-key"><b>48.6% strictly usable</b></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="data">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Data engine</p><h2>Hierarchical data, targeted growth.</h2></div>
+          <p>Dreamotion scales data hierarchically and purposefully. Three data tiers play complementary roles: broad coverage builds semantic breadth, targeted refinement repairs capability gaps, and high-fidelity motion capture strengthens fine-grained alignment. The action space is organized by a taxonomy, where recurring model failures guide targeted data expansion.</p>
+        </div>
+        <div class="data-stats reveal">
+          <div class="data-stat"><b>3M</b><span>Motion clips</span></div><div class="data-stat"><b>5K+</b><span>Motion hours</span></div>
+          <div class="data-stat"><b>19</b><span>L1 action domains</span></div><div class="data-stat"><b>3K+</b><span>Leaf action categories</span></div>
+        </div>
+        <div class="tier-samples-head reveal">
+          <h3>Examples across three data tiers</h3>
+          <p>Each motion is paired with multiple textual views, ranging from concise action summaries to detailed, multilingual descriptions and user-style prompts.</p>
+        </div>
+        <div class="tiers">
+          <article class="tier reveal" data-caption-group>
+            <small>BROAD COVERAGE TIER <em>~3M CLIPS</em></small><h3>In-the-wild motion</h3><p>A large-scale motion corpus is built by recovering SMPL-X motion from in-the-wild videos and pairing it with VLM-generated captions, providing broad coverage of real-world actions and language.</p>
+            <div class="tier-video has-video" data-video-slot="broad-coverage-sample"><video autoplay muted loop playsinline preload="metadata" aria-label="Broad coverage data sample"><source src="files/data_videos/tier_samples/broad_coverage/broad_001.mp4" type="video/mp4"></video></div>
+            <div class="caption-guide" aria-hidden="true">Click the tabs below to switch text views</div>
+            <div class="caption-tabs" role="tablist" aria-label="Broad coverage captions">
+              <button class="caption-tab active" type="button" data-caption="Attempting to climb a tree trunk">Short EN</button>
+              <button class="caption-tab" type="button" data-caption="The person grips the tree trunk with both hands, positions their feet on the lower part of the trunk, and repeatedly pulls their body upward by bending arms and pushing with legs, adjusting hand and foot positions to try climbing higher.">Detailed EN</button>
+              <button class="caption-tab" type="button" data-caption="试图爬上树干">Short ZH</button>
+              <button class="caption-tab" type="button" data-caption="双手抓住树干，双脚放在树干下部，反复屈臂、蹬腿，将身体向上拉，调整手脚位置，尝试攀登更高。">Detailed ZH</button>
+            </div>
+            <p class="caption-text">Attempting to climb a tree trunk</p>
+          </article>
+          <article class="tier reveal" data-caption-group>
+            <small>QUALITY REFINEMENT TIER <em>~1M CLIPS</em></small><h3>Targeted synthesis</h3><p>A feedback loop identifies under-covered semantic categories, which are supplemented with videos generated by Seedance 2.0. These videos provide cleaner, more controllable motion data which expand long-tail semantic coverage and improve motion coherence and stability.</p>
+            <div class="tier-video has-video" data-video-slot="quality-refinement-sample"><video autoplay muted loop playsinline preload="metadata" aria-label="Quality refinement data sample"><source src="files/data_videos/tier_samples/quality_refinement/refinement_001.mp4" type="video/mp4"></video></div>
+            <div class="caption-guide" aria-hidden="true">Click the tabs below to switch text views</div>
+            <div class="caption-tabs" role="tablist" aria-label="Quality refinement captions">
+              <button class="caption-tab" type="button" data-caption="Extend arm, perform horizontal waving motions, then lower arm">Short EN</button>
+              <button class="caption-tab" type="button" data-caption="First, the left arm lifts from the body's side, extends straight to a horizontal position at the body's right. Then, the arm swings horizontally left, then right, repeating this motion once. Finally, the arm lowers back to the body's side.">Detailed EN</button>
+              <button class="caption-tab" type="button" data-caption="伸展手臂，进行水平挥动动作，然后放下手臂">Short ZH</button>
+              <button class="caption-tab" type="button" data-caption="首先，左臂从身体侧面抬起，伸直至身体右侧的水平位置。然后，手臂水平向左摆动，再向右摆动，重复此动作一次。最后，手臂放回身体侧面。">Detailed ZH</button>
+              <button class="caption-tab active" type="button" data-caption="A traffic police officer turns their body and signals a turn">User Prompt</button>
+            </div>
+            <p class="caption-text">A traffic police officer turns their body and signals a turn</p>
+          </article>
+          <article class="tier reveal" data-caption-group>
+            <small>HIGH FIDELITY TIER <em>~100K CLIPS</em></small><h3>Optical MoCap</h3><p>Precise optical motion capture is paired with human-authored descriptions to provide high-fidelity motion and semantic supervision, strengthening realism, expressiveness, and fine-grained instruction following.</p>
+            <div class="tier-video has-video" data-video-slot="high-fidelity-sample"><video autoplay muted loop playsinline preload="metadata" aria-label="High fidelity data sample"><source src="files/data_videos/tier_samples/high_fidelity/fidelity_001.mp4" type="video/mp4"></video></div>
+            <div class="caption-guide" aria-hidden="true">Click the tabs below to switch text views</div>
+            <div class="caption-tabs" role="tablist" aria-label="High fidelity captions">
+              <button class="caption-tab" type="button" data-caption="A person spreads his arms wide, rotates counterclockwise one full turn on the spot, and then resumes a standing position.">Short EN</button>
+              <button class="caption-tab active" type="button" data-caption="She starts from a standing position, spreads her arms straight out to both sides, rotates one full circle counterclockwise centered on herself, turns her head along with her body, then retracts her arms and stands still.">Detailed EN</button>
+              <button class="caption-tab" type="button" data-caption="一个人张开双臂，原地逆时针旋转一圈后恢复站立">Short ZH</button>
+              <button class="caption-tab" type="button" data-caption="她从站姿起始，双臂向两侧平举张开，以自身为中心逆时针旋转一圈，头部随身体转动，随后收回双臂站定">Detailed ZH</button>
+              <button class="caption-tab" type="button" data-caption="开心地张开双臂逆时针转一圈后收回手臂恢复站姿">User Prompt</button>
+            </div>
+            <p class="caption-text">She starts from a standing position, spreads her arms straight out to both sides, rotates one full circle counterclockwise centered on herself, turns her head along with her body, then retracts her arms and stands still.</p>
+          </article>
+        </div>
+        <div class="data-engine-grid">
+          <article class="engine-card reveal">
+            <h3>Action Taxonomy</h3>
+            <p>A five-level L1–L5 hierarchy for organizing motion semantics space into structured taxonomy. A partial view is shown below.</p>
+            <div class="engine-visual"><img src="files/images/human_action_taxonomy_cvpr.png" alt="Hierarchical human action taxonomy"></div>
+          </article>
+          <article class="engine-card reveal">
+            <h3>Feedback loop</h3>
+            <p>Model failures reveal capability gaps and drive targeted data expansion.</p>
+            <div class="engine-visual"><img src="files/images/failure_driven_loop.png" alt="Failure-driven data expansion loop"></div>
+          </article>
+          <article class="engine-card reveal">
+            <h3>Taxonomy scale</h3>
+            <p>19 L1 domains, 3,000+ L4/L5 leaf actions.</p>
+            <div class="engine-visual"><img src="files/images/dataset_taxonomy_scale_clean.png" alt="Taxonomy scale statistics"></div>
+          </article>
+          <article class="engine-card reveal">
+            <h3>Long-tail coverage</h3>
+            <p>85%+ leaf categories have at least 10 samples.</p>
+            <div class="engine-visual"><img src="files/images/dataset_long_tail_coverage_clean.png" alt="Long-tail leaf category coverage"></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="method">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Method</p><h2>Structured generation,<br>progressive learning.</h2></div>
+          <p>Dreamotion combines structured motion generation with progressive training to support more reliable full-body motion generation.</p>
+        </div>
+        <div class="method-stack">
+          <article class="method-block reveal">
+            <div class="method-copy"><p class="eyebrow">Model</p><h3>Root–Body–Hand cascade</h3><p>Dreamotion generates full-body motion hierarchically from root trajectory to body dynamics and finally hand-level details, in order to preserve fine-grained details while maintaining overall consistency.</p></div>
+            <div class="pipeline"><img src="files/images/t2m_pipeline.png" alt="Root Body Hand cascade text-to-motion generation pipeline"></div>
+          </article>
+          <article class="method-block reveal">
+            <div class="method-copy"><p class="eyebrow">Training</p><h3>Pre-Training → Continued Training → Supervised Fine-Tuning</h3><p>The training curriculum progresses through three corresponding data tiers, moving from large-scale generalization to targeted refinement and high-fidelity alignment.</p></div>
+            <div class="stage-row">
+              <div class="stage"><b>PT · Generalize</b><span class="stage-source">Data: Broad-coverage</span><span class="stage-purpose">Broad text-motion generalization</span></div>
+              <div class="stage"><b>CT · Repair</b><span class="stage-source">Data: Quality-refinement</span><span class="stage-purpose">Motion quality and capability repair</span></div>
+              <div class="stage"><b>SFT · Align</b><span class="stage-source">Data: High-fidelity</span><span class="stage-purpose">Realism and fine-grained alignment</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="scaling">
+      <div class="container">
+        <div class="section-head reveal">
+          <div><p class="eyebrow">Scaling behavior</p><h2>Scaling data and model capacity.</h2></div>
+          <p>Automatic evaluation reveals how data and model scaling affect the generation performance. Diversity measures motion variety, DOS P95 captures severe high-frequency artifacts, and R-Precision@3 measures text-motion alignment.</p>
+        </div>
+        <div class="scaling-layout">
+          <div class="scaling-summary">
+            <article class="scaling-finding reveal"><small>DATA SCALE</small><b>100K → 3M</b><p>Broader data leads to consistent gains in diversity, semantic alignment, and high-frequency motion quality.</p></article>
+            <article class="scaling-finding reveal"><small>MODEL SCALE</small><b>0.05B → 1B</b><p>Larger models improve overall performance up to 0.5B, after which gains largely saturate except for slight improvements in alignment.</p></article>
+          </div>
+          <article class="scaling-chart reveal"><div class="chart"><img src="files/images/scaling_behavior.png" alt="Data and model scaling results"></div></article>
+        </div>
+      </div>
+    </section>
+
+    <aside class="contributors reveal" id="contributors" aria-label="Contributors">
+      <div class="container">
+        <p class="contributors-title">Contributors</p>
+        <p class="contributors-list">Xinghan Wang, Ying Xu, Yanbo Zheng, Ming Zhou, Renchong Tan, Yuan Zeng, Zichao Wei, Longtao Zhang, Youjiang Xu, Yuan Zhang</p>
+      </div>
+    </aside>
+
+  </main>
+
+  <footer><div class="container footer"><span>@ ByteDance Intelligent Creation</span><div><a href="#top">Back to top</a></div></div></footer>
+  <div class="film-modal" id="film-modal" role="dialog" aria-modal="true" aria-label="Expanded Dreamotion demo">
+    <div class="film-modal-inner"><button class="film-close" type="button" aria-label="Close expanded video">×</button><video id="film-modal-video" controls loop playsinline></video><p id="film-modal-prompt"></p></div>
+  </div>
+  <div class="image-modal" id="lumina-image-modal" role="dialog" aria-modal="true" aria-label="Expanded Lumina instruction screenshot">
+    <div class="image-modal-inner"><button class="image-close" type="button" aria-label="Close expanded screenshot">×</button><img id="lumina-modal-image" src="" alt=""></div>
+  </div>
+
+  <script>
+    const applicationsSection=document.querySelector('#applications'),capabilitiesSection=document.querySelector('#capabilities');
+    applicationsSection.parentNode.insertBefore(capabilitiesSection,applicationsSection);
+    const menu=document.querySelector('.menu'),links=document.querySelector('.links');
+    menu.addEventListener('click',()=>{const open=links.classList.toggle('open');menu.setAttribute('aria-expanded',String(open))});
+    links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));
+    document.querySelectorAll('.disabled').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
+    document.querySelectorAll('img:not(#lumina-modal-image)').forEach(img=>{
+      const showMissing=()=>{
+        if(img.nextElementSibling?.classList.contains('asset-missing'))return;
+        const missing=document.createElement('div');
+        missing.className='asset-missing';
+        missing.textContent=`Add image: ${img.getAttribute('src')}`;
+        img.hidden=true;
+        img.insertAdjacentElement('afterend',missing);
+      };
+      img.addEventListener('error',showMissing);
+      if(img.complete&&img.naturalWidth===0)showMissing();
+    });
+    document.querySelectorAll('[data-caption-group]').forEach(group=>{
+      const output=group.querySelector('.caption-text');
+      group.querySelectorAll('.caption-tab').forEach(tab=>tab.addEventListener('click',()=>{
+        group.querySelectorAll('.caption-tab').forEach(item=>item.classList.remove('active'));
+        tab.classList.add('active');
+        output.textContent=tab.dataset.caption;
+      }));
+    });
+    const imageModal=document.querySelector('#lumina-image-modal'),modalImage=document.querySelector('#lumina-modal-image');
+    const closeImage=()=>{imageModal.classList.remove('open');modalImage.removeAttribute('src');modalImage.alt='';};
+    document.querySelectorAll('.lumina-shot').forEach(button=>button.addEventListener('click',()=>{
+      modalImage.src=button.dataset.image;modalImage.alt=button.dataset.alt;imageModal.classList.add('open');
+    }));
+    document.querySelector('.image-close').addEventListener('click',closeImage);
+    imageModal.addEventListener('click',event=>{if(event.target===imageModal)closeImage()});
+    const heroDemos=[
+      'Alternate_high_knees_with_both_legs_seed1254053270_robot_rot225.mp4',
+      'Alternately_sweep_both_arms_backward_as_if_paddling_a_kayak_seed171466323_robot_rot225.mp4',
+      'Clench_both_fists_and_wave_the_arms_excitedly_in_celebration_seed927522650_robot_rot225.mp4',
+      'Climb_upward_by_alternately_reaching_with_both_hands,_pretending_to_climb_a_ladder_seed171466323_robot_rot225.mp4',
+      'Do_a_handstand_against_a_wall_seed927522650_robot_rot225.mp4',
+      'Drum_with_both_hands,_then_tap_the_feet_to_the_beat_seed955851941_robot_rot225.mp4',
+      'Extend_the_arms_horizontally_and_perform_a_set_of_standard_squats_seed927522650_robot_rot225.mp4',
+      'First_clap_with_both_hands,_then_raise_both_arms_seed171466323_robot_rot225.mp4',
+      'First_jog_with_both_arms_swinging,_then_stop_in_place_seed927522650_robot_rot225.mp4',
+      'First_lower_the_head_and_pause,_then_slowly_raise_both_arms_seed927522650_robot_rot225.mp4',
+      'First_point_forward_with_one_hand,_then_spread_both_hands_seed171466323_robot_rot225.mp4',
+      'First_pretend_to_open_a_box_with_both_hands,_then_present_it_forward_seed171466323_robot_rot225.mp4',
+      'First_stand_still,_then_pretend_to_hold_a_tennis_racket_with_both_hands_and_perform_a_forehand_swing,_and_finally_return_to_standing_seed171466323_robot_rot225.mp4',
+      'First_step_forward,_then_spread_both_hands,_and_finally_point_forward_with_one_hand_seed171466323_robot_rot225.mp4',
+      'Form_a_heart_shape_over_the_head_with_both_hands_and_freeze_seed171466323_robot_rot225.mp4',
+      'Hold_a_basketball_with_both_hands,_bend_the_knees,_then_shoot_upward_seed1254053270_robot_rot225.mp4',
+      'Hold_an_axe_with_both_hands_and_chop_wood_forcefully_downward_seed171466323_robot_rot225.mp4',
+      'Jog_lightly_down_the_stairs_seed171466323_robot_rot225.mp4',
+      'Keep_both_feet_together_and_make_repeated_small_jumps_seed171466323_robot_rot225.mp4',
+      'Keep_standing_with_both_hands_clasped_seed171466323_robot_rot225.mp4',
+      'Lean_back_half_a_step_in_surprise,_covering_the_wide-open_mouth_with_both_hands_seed171466323_robot_rot225.mp4',
+      'Perform_Tai_Chi_cloud_hands_in_front_of_the_body,_slowly_shifting_the_weight_from_side_to_side_seed171466323_robot_rot225.mp4',
+      'Perform_a_sequence_of_basic_Latin-dance_hip_sways_seed171466323_robot_rot225.mp4',
+      'Perform_a_sequence_of_tricks_with_yo-yo_and_then_catch_it_seed955851941_robot_rot225.mp4',
+      'Perform_a_set_of_standard_squats_seed171466323_robot_rot225.mp4',
+      'Pick_up_a_sandwich_with_both_hands,_take_a_bite,_then_put_it_down_seed171466323_robot_rot225.mp4',
+      'Press_downward_with_one_hand,_making_a_wait_gesture_seed171466323_robot_rot225.mp4',
+      'Pretend_to_hold_a_steering_wheel_with_both_hands_and_turn_it_left_and_right_seed171466323_robot_rot225.mp4',
+      'Pretend_to_jump_rope_in_place_seed171466323_robot_rot225.mp4',
+      'Pretend_to_offer_an_object_forward_with_both_hands_seed171466323_robot_rot225.mp4',
+      'Pretend_to_play_the_violin_with_both_hands_seed927522650_robot_rot225.mp4',
+      'Quickly_raise_both_hands_overhead,_then_lower_them_rapidly_seed171466323_robot_rot225.mp4',
+      'Raise_both_hands_in_front_of_the_chest_and_extend_two_fingers_on_each_hand_in_a_V_sign_seed171466323_robot_rot225.mp4',
+      'Raise_one_thumb_to_show_approval_seed955851941_robot_rot225.mp4',
+      'Run_all_the_way_over,_pick_up_something_from_the_ground,_then_walk_back_seed1254053270_robot_rot225.mp4',
+      'Run_in_place_with_high_knees_seed171466323_robot_rot225.mp4',
+      'Shrug_helplessly_and_spread_both_hands_to_the_sides_seed171466323_robot_rot225.mp4',
+      'Slowly_curl_into_a_squat_seed171466323_robot_rot225.mp4',
+      'Slowly_look_around_seed171466323_robot_rot225.mp4',
+      'Slowly_raise_both_hands_overhead,_then_slowly_lower_them_seed927522650_robot_rot225.mp4',
+      'Sprint_quickly_up_the_stairs_seed171466323_robot_rot225.mp4',
+      'Step_forward_and_extend_a_hand_in_welcome_seed171466323_robot_rot225.mp4',
+      'Step_forward_into_a_lunge,_then_return_and_stand_firmly_seed171466323_robot_rot225.mp4',
+      'Throw_repeated_punches_into_the_air_seed1254053270_robot_rot225.mp4',
+      'Walk_carefully_down_the_stairs_one_step_at_a_time_while_holding_the_railing_seed927522650_robot_rot225.mp4',
+      'Walk_forward_confidently_with_large_steps,_head_held_high_and_chest_out_seed171466323_robot_rot225.mp4'
+    ];
+    const promptFromFilename=file=>file.replace(/_seed\d+_robot_rot\d+\.mp4$/,'').replaceAll('_',' ');
+    const modal=document.querySelector('#film-modal'),modalVideo=document.querySelector('#film-modal-video'),modalPrompt=document.querySelector('#film-modal-prompt');
+    const openFilm=(src,prompt)=>{
+      modalVideo.src=src;modalPrompt.textContent=prompt;modal.classList.add('open');modalVideo.play().catch(()=>{});
+    };
+    const closeFilm=()=>{modal.classList.remove('open');modalVideo.pause();modalVideo.removeAttribute('src');modalVideo.load();};
+    document.querySelector('.film-close').addEventListener('click',closeFilm);
+    modal.addEventListener('click',event=>{if(event.target===modal)closeFilm()});
+    document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(modal.classList.contains('open'))closeFilm();if(imageModal.classList.contains('open'))closeImage();});
+    const buildFilmRow=(id,items)=>{
+      const row=document.querySelector(id),loopItems=[...items,...items];
+      loopItems.forEach(file=>{
+        const prompt=promptFromFilename(file),src=`files/hero_videos/${file}`;
+        const card=document.createElement('button');
+        card.className='film-card';card.type='button';card.setAttribute('aria-label',prompt);
+        card.innerHTML=`<video muted loop playsinline preload="none" data-src="${encodeURI(src)}"></video><p class="film-prompt">${prompt}</p>`;
+        const video=card.querySelector('video');
+        card.addEventListener('pointerenter',()=>video.pause());
+        card.addEventListener('pointerleave',()=>video.play().catch(()=>{}));
+        card.addEventListener('focus',()=>video.pause());
+        card.addEventListener('blur',()=>video.play().catch(()=>{}));
+        card.addEventListener('click',()=>openFilm(encodeURI(src),prompt));
+        row.append(card);
+      });
+    };
+    buildFilmRow('#film-row-a',heroDemos.slice(0,23));
+    buildFilmRow('#film-row-b',heroDemos.slice(23));
+    const lazyFilms=new IntersectionObserver(entries=>entries.forEach(({target, isIntersecting})=>{
+      const video=target.querySelector('video');
+      if(isIntersecting){
+        if(!video.dataset.loaded){
+          video.src=video.dataset.src;
+          video.dataset.loaded='true';
+          video.load();
+        }
+        if(!target.matches(':hover,:focus-within'))video.play().catch(()=>{});
+      }else{
+        video.pause();
+      }
+    }),{rootMargin:'180px 260px',threshold:.01});
+    document.querySelectorAll('.film-card').forEach(card=>lazyFilms.observe(card));
+    const applicationVideos=new IntersectionObserver(entries=>entries.forEach(({target,isIntersecting})=>{
+      if(isIntersecting){
+        if(!target.dataset.loaded){
+          target.src=target.dataset.src;
+          target.dataset.loaded='true';
+          target.load();
+        }
+        target.play().catch(()=>{});
+      }else{
+        target.pause();
+      }
+    }),{rootMargin:'180px 0px',threshold:.08});
+    document.querySelectorAll('.application-video').forEach(video=>applicationVideos.observe(video));
+    const reveal=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');reveal.unobserve(e.target)}}),{threshold:.1});
+    document.querySelectorAll('.reveal').forEach(e=>reveal.observe(e));
+    const navItems=[...document.querySelectorAll('.links a[href^="#"]')];
+    const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)navItems.forEach(a=>a.classList.toggle('active',a.hash==='#'+e.target.id))}),{rootMargin:'-35% 0px -55%'});
+    document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+  </script>
+</body>
+</html>
